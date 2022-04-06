@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css">
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/3.0.0-rc.5/web3.min.js"></script> -->
+	<script type="text/javascript" src="node_modules/web3/dist/web3.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <title>Web3js Contract Integration</title>
+
+</head>
+<body>
+    <style>
+        .meta-gray {
+            -webkit-filter: grayscale(1);
+        }
+        .meta-normal {
+            -webkit-filter: grayscale(0);
+        }
+    </style>
+    
+    <div class="container">
+        <div style="margin-top: 30px;" class="row text-center">
+            <div class="col-md-12">
+                <h2>Exemplo de Dapp</h2>
+            </div>            
+        </div>
+        <div class="row text-center">
+            <div class="col-md-12" id="loader">
+                <img src = "assets/animacao.gif">
+            </div>
+        </div>
+        <div style="margin-top: 30px;" class="row text-center">
+            <div class="col-md-12">
+                <button id="enableMetamask" class="btn btn-primary">Conectar ao Metamask</button>
+            </div>
+        </div>
+        <div class="row text-center">
+            <div class="col-md-12">
+                <span id="status"></span>
+            </div>
+        </div>
+        <section class="contract-section hidden">
+            <div class="row text-center">
+                <div class="col-md-4 offset-4">
+                    <span>Inserir valor: <input id="value" type="text" class="form-control" value="">
+					<br>
+					<button id="setValue" class="btn btn-primary">Inserir Valor</button></span>
+                </div>
+            </div>
+			<br>
+			<div style="margin-top: 30px;" class="row text-center">
+                <div class="col-md-12">
+                    <h3>Informações do Contrato</h3>
+                </div>
+            </div>
+            <div class="row text-center">
+                <div class="col-md-12">
+                    <span>Valor Corrente Obtido: <i id="getValue"></i></span>
+                </div>
+            </div>
+        </section>
+    </div>  
+    <script>
+        let currentAccount = null;
+        let web3;
+        let abi = [
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_value",
+				"type": "uint256"
+			}
+		],
+		"name": "setValue",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getMsgSender",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getValue",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+]
+        let contactAddress = '0xe61a496f93096de983a858Dd3041c957F7d868d7'
+        
+        function handleAccountsChanged(accounts) {
+            console.log('Calling HandleChanged')
+            
+            if (accounts.length === 0) {
+                console.log('Please connect to MetaMask.');
+                $('#enableMetamask').html('Conectar ao Metamask')
+            } else if (accounts[0] !== currentAccount) {
+                currentAccount = accounts[0];
+                $('#enableMetamask').html(currentAccount)
+                $('#status').html('')
+                
+                if(currentAccount != null) {
+                    // Set the button label
+                    $('#enableMetamask').html(currentAccount)
+                }
+            }
+            console.log('Endereço da conta corrente = '+currentAccount)
+        }
+
+        function connect() {
+            console.log('Calling connect()')
+            ethereum
+            .request({ method: 'eth_requestAccounts' })
+            .then(handleAccountsChanged)
+            .catch((err) => {
+            if (err.code === 4001) {                
+                console.log('Please connect to MetaMask.');
+                $('#status').html('Você recusou conectar ao Metamask')
+            } else {
+                console.error(err);
+            }
+            });
+        }
+
+		
+        function detectMetaMask() {
+            if (typeof window.ethereum !== 'undefined') {                
+                return true
+            } else {                
+                return false
+            }
+        }		
+		
+
+        async function getValue() {
+            			
+            const contractFirst = new web3.eth.Contract(
+                        abi,
+                        contactAddress
+            );
+
+            contractFirst.methods.getValue().call().then(function (result) { 
+				console.log('Get Value: '+result)			
+                $('#getValue').html(result)
+				
+            });
+			
+        }
+
+        async function setValue() {
+            console.log('Set Value')	
+			
+			$("#loader").show();		
+            input_value = $('#value').val()
+            
+            if(input_value.trim() == '') {
+                input_value = 0
+            }
+            if(!isNaN(input_value)) {
+                input_value = parseInt(input_value)   
+            }
+
+            const contractFirst = new web3.eth.Contract(
+                        abi,
+                        contactAddress
+            );
+            
+            contractFirst.methods.setValue(input_value).send({from:currentAccount}).then(function (result) {
+                console.log(result);
+               	$("#loader").hide();
+				getValue()
+            });			
+            
+        }
+    </script>
+    <script>   
+        						
+					
+        $( document ).ready(function() {		
+            $("#loader").hide();			
+			m = detectMetaMask()
+            if(m) {
+                $('#metaicon').removeClass('meta-gray')
+                $('#metaicon').addClass('meta-normal')
+                $('#enableMetamask').attr('disabled',false)
+                web3 = new Web3(window.ethereum);
+            } else {
+                $('#enableMetamask').attr('disabled',true)
+                $('#metaicon').removeClass('meta-normal')
+                $('#metaicon').addClass('meta-gray')
+				web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:7545"));
+            }
+			
+			
+			
+            $('#enableMetamask').click(function() {
+                connect()
+            });
+
+            $('#setValue').click(function() {	
+							
+                setValue()
+            });
+                       
+           
+			
+        })
+    </script>  
+</body>
+</html>
